@@ -1,10 +1,41 @@
-## Upfluence posts stats
+# Upfluence posts stats
 
-### Draft notes
+This service provides an API for real-time analysis of social events (posts).
+
+It is implemented with a Golang HTTP server.
+
+## Usage
+
+Run the server:
+
+```
+go run github.com/xpetit/upfluence-social/cmd/server@latest
+```
+
+Try it:
+
+```
+curl -G localhost:8080/analysis -d dimension=likes -d duration=15s
+```
+
+Output:
+
+> ```json
+> {
+>   "likes_p50": 18,
+>   "likes_p90": 1181,
+>   "likes_p99": 30753,
+>   "maximum_timestamp": 1691656364,
+>   "minimum_timestamp": 1570265971,
+>   "total_posts": 39
+> }
+> ```
+
+## Draft notes
 
 I've let a few `TODO` in the code to discuss things in review.
 
-#### TODO
+### TODO
 
 - Add tests
 - Add benchmarks
@@ -18,7 +49,7 @@ I've let a few `TODO` in the code to discuss things in review.
 - Graceful shutdown?
 - Handle duplicate events (same ID)?
 
-### Implementation details & improvements
+## Implementation details & improvements
 
 Make the event stream retryable with an exponential backoff.
 
