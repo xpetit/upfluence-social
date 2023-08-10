@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -32,6 +33,17 @@ type Event struct {
 	UnixTime uint32
 	ID       uint32
 	Counts   [len(Dimensions)]uint32
+}
+
+func (e Event) String() string {
+	var sb strings.Builder
+	date := time.Unix(int64(e.UnixTime), 0).UTC().Format(time.DateTime)
+	fmt.Fprintf(&sb, "%s ID:%d,", date, e.ID)
+	for i, count := range e.Counts {
+		fmt.Fprintf(&sb, "%s:%d,", Dimension(i), count)
+	}
+	s := sb.String()
+	return s[:len(s)-1] // remove trailing comma
 }
 
 type EventStream struct {
