@@ -16,7 +16,8 @@ import (
 )
 
 type App struct {
-	Addr        string
+	StreamAddr  string
+	ServerAddr  string
 	EventStream *social.EventStream
 }
 
@@ -62,7 +63,7 @@ func (a *App) Analyze(values url.Values) (map[string]int, error) {
 }
 
 func (app *App) Run() error {
-	eventStream, err := social.OpenEventStream("https://stream.upfluence.co/stream")
+	eventStream, err := social.OpenEventStream(app.StreamAddr)
 	if err != nil {
 		return err
 	}
@@ -88,15 +89,16 @@ func (app *App) Run() error {
 		}
 	}))
 
-	log.Println("listening to", app.Addr)
-	return http.ListenAndServe(app.Addr, nil)
+	log.Println("listening to", app.ServerAddr)
+	return http.ListenAndServe(app.ServerAddr, nil)
 }
 
 func main() {
-	addr := flag.String("addr", "localhost:8080", "network address to listen to")
+	var app App
+	flag.StringVar(&app.StreamAddr, "stream", "https://stream.upfluence.co/stream", "HTTP streaming endpoint")
+	flag.StringVar(&app.ServerAddr, "addr", "localhost:8080", "network address to listen to")
 	flag.Parse()
 
-	app := App{Addr: *addr}
 	if err := app.Run(); err != nil {
 		log.Fatal(err)
 	}
