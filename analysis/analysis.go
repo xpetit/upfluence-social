@@ -9,11 +9,15 @@ import (
 )
 
 func getPercentile(vals []uint32, percentile float64) uint32 {
-	if len(vals) == 0 {
+	n := len(vals)
+	switch n {
+	case 0:
 		return 0
+	case 1:
+		return vals[0]
 	}
 
-	f := percentile*float64(len(vals)) - 1
+	f := percentile*float64(n) - 1
 	i := int(f)
 	if f == float64(i) {
 		return vals[i]

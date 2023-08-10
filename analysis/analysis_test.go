@@ -30,9 +30,13 @@ func TestCompute(t *testing.T) {
 			})
 		}
 		// inject in the middle the minimum & maximum timestamps
-		mid := len(events)/2 - 1
-		events[mid].UnixTime = maxUnix
-		events[mid+1].UnixTime = minUnix
+		mid := len(events) / 2
+		if len(events) > 0 {
+			events[mid].UnixTime = maxUnix
+		}
+		if len(events) > 1 {
+			events[mid+1].UnixTime = minUnix
+		}
 
 		const likes = social.Dimension(0)
 		got := compute(events, likes)
@@ -68,4 +72,15 @@ func TestCompute(t *testing.T) {
 		P90:              9,
 		P99:              10,
 	})
+
+	assertStatsEqual(1, Statistics{
+		TotalPosts:       1,
+		MinimumTimestamp: int(maxUnix),
+		MaximumTimestamp: int(maxUnix),
+		P50:              1,
+		P90:              1,
+		P99:              1,
+	})
+
+	assertStatsEqual(0, Statistics{})
 }

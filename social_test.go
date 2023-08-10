@@ -37,7 +37,9 @@ func TestParseEvent(t *testing.T) {
 		assertError(`data: {}`)
 		assertError(`data: {"pin":null`)
 		assertError(`data: {"pin":{}`)
+		assertError(`data: {"pin":{"timestamp":null}}`)
 		assertError(`data: {"pin":{"timestamp":0}}`)
 		assertError(`data: {"pin":{"timestamp":0,"id":null}}`)
+		assertError(`data: {"pin":{"timestamp":0,"id":0,"comments":[]}}`)
 	})
 }
