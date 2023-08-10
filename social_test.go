@@ -43,3 +43,13 @@ func TestParseEvent(t *testing.T) {
 		assertError(`data: {"pin":{"timestamp":0,"id":0,"comments":[]}}`)
 	})
 }
+
+func BenchmarkParseEvent(b *testing.B) {
+	payload := []byte(`data: {"pin":{"id":99941156,"title":"","description":"VS Email","links":"","likes":8432,"comments":3,"saves":0,"repins":1,"timestamp":1686635858,"post_id":"1090574865996212582"}}`)
+	for i := 0; i < b.N; i++ {
+		if _, err := parseEvent(payload); err != nil {
+			b.Fatal(err)
+		}
+		b.SetBytes(int64(len(payload)))
+	}
+}
