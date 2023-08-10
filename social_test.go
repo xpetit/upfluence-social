@@ -10,7 +10,7 @@ func TestParseEvent(t *testing.T) {
 			if err != nil {
 				t.Fatal("unexpected error:", err)
 			}
-			if got != want {
+			if *got != want {
 				t.Errorf("\ngot:  %s\nwant: %s", got, want)
 			}
 		}

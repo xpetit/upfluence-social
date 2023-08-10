@@ -21,9 +21,9 @@ func TestCompute(t *testing.T) {
 		t.Helper()
 
 		// generate events
-		var events []social.Event
+		var events []*social.Event
 		for i := uint32(1); i <= uint32(nb); i++ {
-			events = append(events, social.Event{
+			events = append(events, &social.Event{
 				UnixTime: unix,
 				ID:       i,
 				Counts:   [len(social.Dimensions)]uint32{i},

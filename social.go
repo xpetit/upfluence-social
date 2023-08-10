@@ -51,7 +51,7 @@ type EventStream struct {
 
 	done  chan struct{}
 	m     sync.RWMutex
-	chans []chan Event
+	chans []chan *Event
 }
 
 // OpenEventStream opens an event stream, allowing clients to listen to it.
@@ -97,15 +97,15 @@ func OpenEventStream(address string) (*EventStream, error) {
 }
 
 // parseEvent extracts an event from a JSON payload
-func parseEvent(b []byte) (Event, error) {
+func parseEvent(b []byte) (*Event, error) {
 	payload, found := bytes.CutPrefix(b, []byte("data: "))
 	if !found {
-		return Event{}, errors.New("prefix not found")
+		return nil, errors.New("prefix not found")
 	}
 
 	var eventRaw map[string]map[string]json.RawMessage
 	if err := json.Unmarshal(payload, &eventRaw); err != nil {
-		return Event{}, err
+		return nil, err
 	}
 
 	for rootKey, post := range eventRaw {
@@ -113,12 +113,12 @@ func parseEvent(b []byte) (Event, error) {
 
 		unixTime, err := strconv.ParseUint(string(post["timestamp"]), 10, 32)
 		if err != nil {
-			return Event{}, fmt.Errorf("invalid timestamp: %s", err)
+			return nil, fmt.Errorf("invalid timestamp: %s", err)
 		}
 
 		id, err := strconv.ParseUint(string(post["id"]), 10, 32)
 		if err != nil {
-			return Event{}, fmt.Errorf("invalid ID: %s", err)
+			return nil, fmt.Errorf("invalid ID: %s", err)
 		}
 
 		event := Event{
@@ -132,21 +132,21 @@ func parseEvent(b []byte) (Event, error) {
 			}
 			count, err := strconv.ParseUint(string(countRaw), 10, 32)
 			if err != nil {
-				return Event{}, fmt.Errorf("invalid count: %s", err)
+				return nil, fmt.Errorf("invalid count: %s", err)
 			}
 			event.Counts[dimensionIdx] = uint32(count)
 		}
-		return event, nil
+		return &event, nil
 	}
 
-	return Event{}, errors.New("empty event")
+	return nil, errors.New("empty event")
 }
 
 // ListenFor listens to the event stream for d duration.
 // The channel closes as soon as the duration has elapsed, or an error occurred.
 // The caller is expected to check *EventStream.Err for errors after the channel closed.
-func (stream *EventStream) ListenFor(duration time.Duration) chan Event {
-	dst := make(chan Event, 100)
+func (stream *EventStream) ListenFor(duration time.Duration) chan *Event {
+	dst := make(chan *Event, 100)
 
 	go func() {
 		// find (or create) a channel spot

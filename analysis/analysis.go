@@ -36,7 +36,7 @@ type Statistics struct {
 	P99              int `json:"p99"`
 }
 
-func compute(events []social.Event, dimension social.Dimension) *Statistics {
+func compute(events []*social.Event, dimension social.Dimension) *Statistics {
 	var counts []uint32
 	var minUnix, maxUnix uint32
 
@@ -63,7 +63,7 @@ func compute(events []social.Event, dimension social.Dimension) *Statistics {
 }
 
 func Gather(stream *social.EventStream, duration time.Duration, dimension social.Dimension) *Statistics {
-	var events []social.Event
+	var events []*social.Event
 
 	for event := range stream.ListenFor(duration) {
 		events = append(events, event)
