@@ -78,6 +78,7 @@ func OpenEventStream(address string) (*EventStream, error) {
 		stream.m.Lock()
 		stream.Err = scanner.Err()
 		stream.m.Unlock()
+		close(stream.done)
 	}()
 
 	return stream, nil
