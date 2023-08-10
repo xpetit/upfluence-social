@@ -15,7 +15,8 @@ I've let a few `TODO` in the code to discuss things in review.
   - Appropriate default level
   - Set `http.Server.ErrorLog` logger
   - Add debug logs for HTTP incoming requests
-- Graceful shutdown
+- Graceful shutdown?
+- Handle duplicate events (same ID)?
 
 ### Implementation details & improvements
 
