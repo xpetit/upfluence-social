@@ -6,6 +6,10 @@ It is implemented with a Golang HTTP server.
 
 ## Usage
 
+Requirements:
+
+- [Go 1.21](https://golang.org/dl/)
+
 Run the server:
 
 ```
