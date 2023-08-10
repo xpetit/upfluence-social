@@ -42,6 +42,7 @@ I've let a few `TODO` in the code to discuss things in review.
 ### TODO
 
 - Add tests
+  - E2E with [`http/httptest`](https://pkg.go.dev/net/http/httptest)
 - Add benchmarks
 - Add comments
 - Improve documentation
@@ -55,6 +56,8 @@ I've let a few `TODO` in the code to discuss things in review.
 
 ## Implementation details & improvements
 
+Reorganize packages to better decouple things, put pub/sub in a separate generic package.
+
 Make the event stream retryable with an exponential backoff.
 
 A 32-bits unsigned integer was choosed for the counts because none of the measured dimensions exceeds 4 billion, but if one day "views" were added, this might not be enough (some YouTube videos have been watched more than 4 billion times).
@@ -62,5 +65,3 @@ A 32-bits unsigned integer was choosed for the counts because none of the measur
 To improve performance, consider using algorithms (t-digest?) that don't require to store & sort all the values to compute percentiles.
 
 There are other optimization opportunities like using SOA (each dimension in a separate array) with delta-compression.
-
-If it is acceptable to limit the analysis to the last 185 days, `uint16` can represent seconds (instead of `uint32`).
