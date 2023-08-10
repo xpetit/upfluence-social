@@ -63,11 +63,13 @@ func (a *App) Analyze(values url.Values) (map[string]int, error) {
 }
 
 func (app *App) Run() error {
-	eventStream, err := social.OpenEventStream(app.StreamAddr)
+	resp, err := http.Get(app.StreamAddr)
 	if err != nil {
 		return err
 	}
-	app.EventStream = eventStream
+	defer resp.Body.Close()
+
+	app.EventStream = social.OpenEventStream(resp.Body)
 
 	http.Handle("/analysis", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {

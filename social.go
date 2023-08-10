@@ -6,8 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
-	"net/http"
 	"strconv"
 	"strings"
 	"sync"
@@ -56,16 +56,11 @@ type EventStream struct {
 
 // OpenEventStream opens an event stream, allowing clients to listen to it.
 // Parsing errors are logged using the standard logger.
-func OpenEventStream(address string) (*EventStream, error) {
-	resp, err := http.Get(address)
-	if err != nil {
-		return nil, err
-	}
+func OpenEventStream(r io.Reader) *EventStream {
 	stream := &EventStream{done: make(chan struct{})}
 
 	go func() {
-		defer resp.Body.Close()
-		scanner := bufio.NewScanner(resp.Body)
+		scanner := bufio.NewScanner(r)
 		for scanner.Scan() {
 			b := scanner.Bytes()
 			if len(b) == 0 {
@@ -93,7 +88,7 @@ func OpenEventStream(address string) (*EventStream, error) {
 		close(stream.done)
 	}()
 
-	return stream, nil
+	return stream
 }
 
 // parseEvent extracts an event from a JSON payload
