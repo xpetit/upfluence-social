@@ -36,11 +36,11 @@ type Statistics struct {
 	P99              int `json:"p99"`
 }
 
-func Gather(stream *social.EventStream, duration time.Duration, dimension social.Dimension) *Statistics {
+func compute(events []social.Event, dimension social.Dimension) *Statistics {
 	var counts []uint32
 	var minUnix, maxUnix uint32
 
-	for event := range stream.ListenFor(duration) {
+	for _, event := range events {
 		if minUnix == 0 || event.UnixTime < minUnix {
 			minUnix = event.UnixTime
 		}
@@ -60,4 +60,14 @@ func Gather(stream *social.EventStream, duration time.Duration, dimension social
 		P90:              int(getPercentile(counts, .9)),
 		P99:              int(getPercentile(counts, .99)),
 	}
+}
+
+func Gather(stream *social.EventStream, duration time.Duration, dimension social.Dimension) *Statistics {
+	var events []social.Event
+
+	for event := range stream.ListenFor(duration) {
+		events = append(events, event)
+	}
+
+	return compute(events, dimension)
 }
