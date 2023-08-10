@@ -144,6 +144,7 @@ func parseEvent(b []byte) (Event, error) {
 
 // ListenFor listens to the event stream for d duration.
 // The channel closes as soon as the duration has elapsed, or an error occurred.
+// The caller is expected to check *EventStream.Err for errors after the channel closed.
 func (stream *EventStream) ListenFor(duration time.Duration) chan Event {
 	dst := make(chan Event, 100)
 
