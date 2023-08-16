@@ -12,7 +12,7 @@ import (
 	"time"
 
 	social "github.com/xpetit/upfluence-social"
-	"github.com/xpetit/upfluence-social/analysis"
+	"github.com/xpetit/upfluence-social/metrics"
 )
 
 type App struct {
@@ -21,7 +21,7 @@ type App struct {
 	EventStream *social.EventStream
 }
 
-func (a *App) Analyze(values url.Values) (map[string]int, error) {
+func (a *App) analyze(values url.Values) (map[string]int, error) {
 	var (
 		dimensionVal = values.Get("dimension")
 		durationVal  = values.Get("duration")
@@ -47,7 +47,11 @@ func (a *App) Analyze(values url.Values) (map[string]int, error) {
 		return nil, errors.New("invalid duration")
 	}
 
-	stats := analysis.Gather(a.EventStream, duration, dimension)
+	points := a.EventStream.ListenTo(dimension, duration)
+	stats := metrics.Collect(points)
+	if err := a.EventStream.Err; err != nil {
+		return nil, err
+	}
 
 	m := map[string]int{
 		"total_posts":       stats.TotalPosts,
@@ -82,7 +86,8 @@ func (app *App) Run() error {
 		enc.SetEscapeHTML(false)
 		enc.SetIndent("", "  ")
 
-		stats, err := app.Analyze(r.URL.Query())
+		// TODO: stop analyzing if the connection is closed by the client
+		stats, err := app.analyze(r.URL.Query())
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			enc.Encode(struct{ Error string }{err.Error()})

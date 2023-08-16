@@ -8,10 +8,10 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"strconv"
 	"strings"
-	"sync"
 	"time"
+
+	"github.com/xpetit/upfluence-social/publish/broker"
 )
 
 // Dimensions are the social values we generate the statistics upon.
@@ -29,10 +29,17 @@ func (d Dimension) String() string {
 	return Dimensions[d]
 }
 
+type Count uint32
+
+type DataPoint struct {
+	Time  uint32
+	Count Count
+}
+
 type Event struct {
+	Counts   [len(Dimensions)]*Count
 	UnixTime uint32
 	ID       uint32
-	Counts   [len(Dimensions)]uint32
 }
 
 func (e Event) String() string {
@@ -49,15 +56,17 @@ func (e Event) String() string {
 type EventStream struct {
 	Err error // unrecoverable error, if any
 
-	done  chan struct{}
-	m     sync.RWMutex
-	chans []chan *Event
+	done chan struct{}
+	br   *broker.Broker[Dimension, DataPoint]
 }
 
 // OpenEventStream opens an event stream, allowing clients to listen to it.
 // Parsing errors are logged using the standard logger.
 func OpenEventStream(r io.Reader) *EventStream {
-	stream := &EventStream{done: make(chan struct{})}
+	stream := &EventStream{
+		done: make(chan struct{}),
+		br:   broker.New[Dimension, DataPoint](),
+	}
 
 	go func() {
 		scanner := bufio.NewScanner(r)
@@ -73,18 +82,16 @@ func OpenEventStream(r io.Reader) *EventStream {
 				continue
 			}
 
-			// dispatch the event to the listeners
-			stream.m.RLock()
-			for _, c := range stream.chans {
-				if c != nil {
-					c <- event
+			for i, count := range event.Counts {
+				if count != nil {
+					stream.br.Publish(Dimension(i), DataPoint{
+						Time:  event.UnixTime,
+						Count: *count,
+					})
 				}
 			}
-			stream.m.RUnlock()
 		}
-		stream.m.Lock()
 		stream.Err = scanner.Err()
-		stream.m.Unlock()
 		close(stream.done)
 	}()
 
@@ -97,80 +104,55 @@ func parseEvent(b []byte) (*Event, error) {
 	if !found {
 		return nil, errors.New("prefix not found")
 	}
-
-	var eventRaw map[string]map[string]json.RawMessage
-	if err := json.Unmarshal(payload, &eventRaw); err != nil {
+	eventWrapper := make(map[string]struct {
+		ID        *uint32
+		Timestamp *uint32
+		Likes     *Count
+		Comments  *Count
+		Favorites *Count
+		Retweets  *Count
+	}, 1)
+	if err := json.Unmarshal(payload, &eventWrapper); err != nil {
 		return nil, err
 	}
-
-	for rootKey, post := range eventRaw {
-		_ = rootKey // TODO: validate this? ("pin", "instagram_media", "tiktok_video", etc)
-
-		unixTime, err := strconv.ParseUint(string(post["timestamp"]), 10, 32)
-		if err != nil {
-			return nil, fmt.Errorf("invalid timestamp: %s", err)
-		}
-
-		id, err := strconv.ParseUint(string(post["id"]), 10, 32)
-		if err != nil {
-			return nil, fmt.Errorf("invalid ID: %s", err)
-		}
-
-		event := Event{
-			UnixTime: uint32(unixTime),
-			ID:       uint32(id),
-		}
-		for dimensionIdx, dimension := range Dimensions {
-			countRaw, found := post[dimension]
-			if !found {
-				continue
-			}
-			count, err := strconv.ParseUint(string(countRaw), 10, 32)
-			if err != nil {
-				return nil, fmt.Errorf("invalid count: %s", err)
-			}
-			event.Counts[dimensionIdx] = uint32(count)
-		}
-		return &event, nil
+	if len(eventWrapper) != 1 {
+		return nil, errors.New("only one rootkey expected")
 	}
-
-	return nil, errors.New("empty event")
+	for _, event := range eventWrapper {
+		if event.Timestamp == nil {
+			return nil, errors.New("missing timestamp")
+		}
+		if event.ID == nil {
+			return nil, errors.New("missing ID")
+		}
+		return &Event{
+			UnixTime: *event.Timestamp,
+			ID:       *event.ID,
+			Counts: [len(Dimensions)]*Count{
+				event.Likes,
+				event.Comments,
+				event.Favorites,
+				event.Retweets,
+			},
+		}, nil
+	}
+	panic("unreachable")
 }
 
-// ListenFor listens to the event stream for d duration.
+// ListenTo listens to the event stream for a given dimension and duration.
+// It returns a channel passing data points.
 // The channel closes as soon as the duration has elapsed, or an error occurred.
 // The caller is expected to check *EventStream.Err for errors after the channel closed.
-func (stream *EventStream) ListenFor(duration time.Duration) chan *Event {
-	dst := make(chan *Event, 100)
+func (stream *EventStream) ListenTo(dimension Dimension, duration time.Duration) chan DataPoint {
+	messages, cancel := stream.br.Subscribe(dimension)
 
 	go func() {
-		// find (or create) a channel spot
-		stream.m.Lock()
-		idx := -1
-		for i, c := range stream.chans {
-			if c == nil {
-				idx = i
-				stream.chans[idx] = dst
-				break
-			}
-		}
-		if idx == -1 {
-			stream.chans = append(stream.chans, dst)
-			idx = len(stream.chans) - 1
-		}
-		stream.m.Unlock()
-
 		select {
-		case <-time.After(duration):
 		case <-stream.done:
+		case <-time.After(duration):
 		}
-
-		// remove channel
-		stream.m.Lock()
-		close(dst)
-		stream.chans[idx] = nil
-		stream.m.Unlock()
+		cancel()
 	}()
 
-	return dst
+	return messages
 }

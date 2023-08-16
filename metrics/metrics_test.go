@@ -1,14 +1,15 @@
-package analysis
+package metrics_test
 
 import (
 	"testing"
 	"time"
 
 	social "github.com/xpetit/upfluence-social"
+	"github.com/xpetit/upfluence-social/metrics"
 )
 
-func TestCompute(t *testing.T) {
-	// use a fixed date for events
+func TestCollect(t *testing.T) {
+	// use a fixed date for data points
 	date, err := time.Parse(time.DateOnly, "2023-08-10")
 	if err != nil {
 		t.Fatal(err)
@@ -17,29 +18,34 @@ func TestCompute(t *testing.T) {
 	minUnix := unix - 1
 	maxUnix := unix + 1
 
-	assertStatsEqual := func(nb int, want Statistics) {
+	assertStatsEqual := func(nb int, want metrics.Statistics) {
 		t.Helper()
 
-		// generate events
-		var events []*social.Event
+		// generate data points
+		var points []social.DataPoint
 		for i := uint32(1); i <= uint32(nb); i++ {
-			events = append(events, &social.Event{
-				UnixTime: unix,
-				ID:       i,
-				Counts:   [len(social.Dimensions)]uint32{i},
+			points = append(points, social.DataPoint{
+				Time:  unix,
+				Count: social.Count(i),
 			})
 		}
 		// inject in the middle the minimum & maximum timestamps
-		mid := len(events) / 2
-		if len(events) > 0 {
-			events[mid].UnixTime = maxUnix
+		mid := len(points) / 2
+		if len(points) > 0 {
+			points[mid].Time = maxUnix
 		}
-		if len(events) > 1 {
-			events[mid+1].UnixTime = minUnix
+		if len(points) > 1 {
+			points[mid+1].Time = minUnix
 		}
 
-		const likes = social.Dimension(0)
-		got := compute(events, likes)
+		c := make(chan social.DataPoint)
+		go func() {
+			for _, point := range points {
+				c <- point
+			}
+			close(c)
+		}()
+		got := metrics.Collect(c)
 
 		assertEqual := func(name string, got, want int) {
 			t.Helper()
@@ -55,7 +61,7 @@ func TestCompute(t *testing.T) {
 		assertEqual("p99", got.P99, want.P99)
 	}
 
-	assertStatsEqual(100, Statistics{
+	assertStatsEqual(100, metrics.Statistics{
 		TotalPosts:       100,
 		MinimumTimestamp: int(minUnix),
 		MaximumTimestamp: int(maxUnix),
@@ -64,7 +70,7 @@ func TestCompute(t *testing.T) {
 		P99:              99,
 	})
 
-	assertStatsEqual(10, Statistics{
+	assertStatsEqual(10, metrics.Statistics{
 		TotalPosts:       10,
 		MinimumTimestamp: int(minUnix),
 		MaximumTimestamp: int(maxUnix),
@@ -73,7 +79,7 @@ func TestCompute(t *testing.T) {
 		P99:              10,
 	})
 
-	assertStatsEqual(1, Statistics{
+	assertStatsEqual(1, metrics.Statistics{
 		TotalPosts:       1,
 		MinimumTimestamp: int(maxUnix),
 		MaximumTimestamp: int(maxUnix),
@@ -82,5 +88,5 @@ func TestCompute(t *testing.T) {
 		P99:              1,
 	})
 
-	assertStatsEqual(0, Statistics{})
+	assertStatsEqual(0, metrics.Statistics{})
 }
